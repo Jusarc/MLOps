@@ -16,19 +16,18 @@ def developer(developer : str):
     try:
         # Abrir el archivo comprimido y leer su contenido descomprimiéndolo
         with gzip.open(ruta_archivo_gz, 'rt') as archivo:
-            df = pd.read_json(archivo, lines=True)
+            df = pd.read_json(archivo, lines=True)[['release_date', 'price', 'developer']]
        
-
         # Eliminar filas con fechas NaT (Not a Time)
         df = df.dropna(subset=['release_date'])
         
         # Filtrar registros con fechas incorrectas
         df = df[df['release_date'].str.match(r'\d{4}-\d{2}-\d{2}$')]
 
-        df['release_date'] = pd.to_datetime(df['release_date'], errors='coerce')
-
-        # Filtrar el dataframe por el publisher proporcionado
+        # Filtrar el dataframe por el developer proporcionado
         df_publisher = df[df['developer'] == developer].copy(deep=True)
+
+        df_publisher['release_date'] = pd.to_datetime(df_publisher['release_date'], errors='coerce')
 
         # Crear una columna adicional para indicar si el contenido es gratis
         df_publisher['es_gratis'] = df_publisher['price'].isin(['Free to Use', 'Free to Play'])
@@ -43,7 +42,6 @@ def developer(developer : str):
         return convertir_dataframe_a_json(resultado)
 
     except Exception as e:
-        # Manejo de la excepción
         print(f"Ocurrió una excepción: {e}")
         return None
 
