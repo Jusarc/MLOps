@@ -4,6 +4,7 @@ from fastapi import APIRouter
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+from textblob import TextBlob
 
 # Obtén la ruta al directorio 'models'
 models_directory = os.path.join(os.path.dirname(__file__), '../models')
@@ -135,6 +136,31 @@ def bestDeveloperYear (year : int):
     except Exception as e:
             print(f"Ocurrió una excepción userdata: {e}")
             return None
+@router.get("/developer-reviews-analysis/{developer}")
+def developerReviewsAnalysis(developer : str):
+    # Cargar los datos desde los archivos .parquet
+    steam_games_df = pd.read_parquet(ruta_archivo_steam_games_parquet, engine='pyarrow')
+    user_reviews_df  = pd.read_parquet(ruta_archivo_user_reviews_parquet, engine='pyarrow')
+
+    # Combinar dataframes
+    merged_df = pd.merge(user_reviews_df, steam_games_df, left_on='item_id', right_on='id', how='inner')
+
+    # Filtrar por el desarrollador proporcionado
+    desarrollador_df = merged_df[merged_df['developer'] == developer].copy()
+
+    # Realizar el análisis de sentimiento y contar las reseñas positivas y negativas
+    desarrollador_df['sentimiento'] = desarrollador_df['review'].apply(analisis_sentimiento)
+    conteo_sentimientos = desarrollador_df['sentimiento'].value_counts().to_dict()
+
+    # Crear el diccionario con los resultados
+    resultados = {developer: {'Positive': conteo_sentimientos.get('Positive', 0),
+                                  'Negative': conteo_sentimientos.get('Negative', 0)}}
+
+    return resultados
+
+def analisis_sentimiento(texto):
+    analysis = TextBlob(texto)
+    return 'Positive' if analysis.sentiment.polarity > 0 else 'Negative'
 
 def convertir_dataframe_a_json(df):
     dataframe_dict = df.to_dict(orient='records')
